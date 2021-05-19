@@ -12,11 +12,25 @@ find_package(catkin REQUIRED COMPONENTS
   pcl_ros
   cv_bridge
   geometry_msgs
+  tf
   roscpp
   rospy
   sensor_msgs
   std_msgs
+  message_generation
   image_transport
+  visualization_msgs
+)
+
+add_service_files(
+  FILES
+  get_object_pose.srv
+)
+
+generate_messages(
+  DEPENDENCIES
+  std_msgs
+  geometry_msgs
   visualization_msgs
 )
 
@@ -112,7 +126,7 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES pcl_example
-#  CATKIN_DEPENDS other_catkin_pkg
+   CATKIN_DEPENDS roscpp rospy std_msgs geometry_msgs tf message_runtime
 #  DEPENDS system_lib
 )
 
@@ -134,9 +148,8 @@ add_executable(surface_normal src/surface_normal.cpp)
 target_link_libraries(surface_normal ${catkin_LIBRARIES})
 
 add_executable(icp_example src/icp_example.cpp)
+add_dependencies(icp_example ${PROJECT_NAME}_gencpp)
 target_link_libraries(icp_example ${catkin_LIBRARIES})
-
-
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}

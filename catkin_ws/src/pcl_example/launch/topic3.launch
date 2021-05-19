@@ -5,8 +5,8 @@
   <arg name="cloud" value="/home/jacky/pcl_icp/catkin_ws/src/pcl_example/model/3d_model/64k/006_mustard_bottle_google_64k/006_mustard_bottle/google_64k/nontextured.ply"/>
   <!-- ICP exmaple -->
   <node pkg="pcl_example" type="icp_example" name="icp_example" output="screen"/>
-  	<param name="model_path" value="$(arg model)" />
-  	<param name="cloud_path" value="$(arg cloud)" />
+  	<!-- param name="model_path" value="$(arg model)"/ -->
+  	<!-- param name="cloud_path" value="$(arg cloud)"/ -->
 	<param name="use_sim_time" value="true"/>
   <!-- rviz -->
   <node pkg="rviz" type="rviz" name="rviz" args="-d $(find pcl_example)/config/rviz/topic3.rviz"/>
