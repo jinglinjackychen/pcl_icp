@@ -8,7 +8,7 @@
 #include <string>
 #include "conversion.hpp"
 #include <sensor_msgs/PointCloud2.h>
-#include <pcl_example/get_object_pose.h>
+#include <pcl_icp/get_object_pose.h>
 
 // tf
 #include <tf/transform_listener.h>
@@ -259,7 +259,7 @@ private:
   /*
    * Service callback
    */
-  bool srv_cb(pcl_example::get_object_pose::Request &req, pcl_example::get_object_pose::Response &res)
+  bool srv_cb(pcl_icp::get_object_pose::Request &req, pcl_icp::get_object_pose::Response &res)
   {
     model->header.frame_id = "/map";
     sub_cloud->header.frame_id = "/map";
