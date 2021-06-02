@@ -55,8 +55,8 @@ private:
   PointCloudXYZRGBNormal::Ptr registered_cloud_normal;
   PointCloudXYZRGB::Ptr registered_cloud;
 
-  string model_path = "/home/jacky/pcl_icp/catkin_ws/src/pcl_example/model/mustard.ply";
-  string cloud_path = "/home/jacky/pcl_icp/catkin_ws/src/pcl_example/model/3d_model/64k/006_mustard_bottle_google_64k/006_mustard_bottle/google_64k/nontextured.ply";
+  string model_path = "/home/jacky/catkin_ws/src/pcl_icp/model/mustard.ply";
+  string cloud_path = "/home/jacky/catkin_ws/src/pcl_icp/model/3d_model/64k/006_mustard_bottle_google_64k/006_mustard_bottle/google_64k/nontextured.ply";
 
   tf::Transform getTransform(std::string target, std::string source, bool &result)
   {
