@@ -8,6 +8,7 @@
 #include <string>
 #include "conversion.hpp"
 #include <sensor_msgs/PointCloud2.h>
+#include <geometry_msgs/Pose.h>
 #include <pcl_icp/get_object_pose.h>
 
 // tf
@@ -54,9 +55,11 @@ private:
   PointCloudXYZRGB::Ptr ini_guess_tf_cloud;
   PointCloudXYZRGBNormal::Ptr registered_cloud_normal;
   PointCloudXYZRGB::Ptr registered_cloud;
+  geometry_msgs::Pose tf1_pose, tf2_pose;
+  double fit_score;
 
-  string model_path = "/home/jacky/catkin_ws/src/pcl_icp/model/mustard.ply";
-  string cloud_path = "/home/jacky/catkin_ws/src/pcl_icp/model/3d_model/64k/006_mustard_bottle_google_64k/006_mustard_bottle/google_64k/nontextured.ply";
+  string model_path = "/home/dualarm/mm-dual-arm-regrasp/catkin_ws/src/pcl_icp/model/mustard.ply";
+  string cloud_path = "/home/dualarm/mm-dual-arm-regrasp/catkin_ws/src/pcl_icp/model/3d_model/64k/006_mustard_bottle_google_64k/006_mustard_bottle/google_64k/nontextured.ply";
 
   tf::Transform getTransform(std::string target, std::string source, bool &result)
   {
@@ -141,12 +144,12 @@ private:
 
     // build the condition
     pcl::ConditionAnd<pcl::PointXYZRGB>::Ptr range_cond(new pcl::ConditionAnd<pcl::PointXYZRGB>());
-    range_cond->addComparison(pcl::FieldComparison<pcl::PointXYZRGB>::ConstPtr(new pcl::FieldComparison<pcl::PointXYZRGB>("x", pcl::ComparisonOps::GT, -0.15)));
-    range_cond->addComparison(pcl::FieldComparison<pcl::PointXYZRGB>::ConstPtr(new pcl::FieldComparison<pcl::PointXYZRGB>("x", pcl::ComparisonOps::LT, 0.2)));
-    range_cond->addComparison(pcl::FieldComparison<pcl::PointXYZRGB>::ConstPtr(new pcl::FieldComparison<pcl::PointXYZRGB>("y", pcl::ComparisonOps::GT, 0.09)));
-    range_cond->addComparison(pcl::FieldComparison<pcl::PointXYZRGB>::ConstPtr(new pcl::FieldComparison<pcl::PointXYZRGB>("y", pcl::ComparisonOps::LT, 0.33)));
+    range_cond->addComparison(pcl::FieldComparison<pcl::PointXYZRGB>::ConstPtr(new pcl::FieldComparison<pcl::PointXYZRGB>("x", pcl::ComparisonOps::GT, -0.27)));
+    range_cond->addComparison(pcl::FieldComparison<pcl::PointXYZRGB>::ConstPtr(new pcl::FieldComparison<pcl::PointXYZRGB>("x", pcl::ComparisonOps::LT, -0.05)));
+    range_cond->addComparison(pcl::FieldComparison<pcl::PointXYZRGB>::ConstPtr(new pcl::FieldComparison<pcl::PointXYZRGB>("y", pcl::ComparisonOps::GT, -0.15)));
+    range_cond->addComparison(pcl::FieldComparison<pcl::PointXYZRGB>::ConstPtr(new pcl::FieldComparison<pcl::PointXYZRGB>("y", pcl::ComparisonOps::LT, 0.20)));
     range_cond->addComparison(pcl::FieldComparison<pcl::PointXYZRGB>::ConstPtr(new pcl::FieldComparison<pcl::PointXYZRGB>("z", pcl::ComparisonOps::GT, 0.0)));
-    range_cond->addComparison(pcl::FieldComparison<pcl::PointXYZRGB>::ConstPtr(new pcl::FieldComparison<pcl::PointXYZRGB>("z", pcl::ComparisonOps::LT, 0.9)));
+    range_cond->addComparison(pcl::FieldComparison<pcl::PointXYZRGB>::ConstPtr(new pcl::FieldComparison<pcl::PointXYZRGB>("z", pcl::ComparisonOps::LT, 0.77)));
     // build the filter
     pcl::ConditionalRemoval<pcl::PointXYZRGB> condrem;
     condrem.setCondition(range_cond);
@@ -211,6 +214,7 @@ private:
     if (icp->hasConverged())
     {
       cout << "icp score: " << icp->getFitnessScore() << endl;
+      fit_score = icp->getFitnessScore();
     }
     else
       cout << "Not converged." << endl;
@@ -233,6 +237,7 @@ private:
     if (icp->hasConverged())
     {
       cout << "icp score: " << icp->getFitnessScore() << endl;
+      fit_score = icp->getFitnessScore();
     }
     else
       cout << "Not converged." << endl;
@@ -261,21 +266,28 @@ private:
    */
   bool srv_cb(pcl_icp::get_object_pose::Request &req, pcl_icp::get_object_pose::Response &res)
   {
-    model->header.frame_id = "/map";
-    sub_cloud->header.frame_id = "/map";
+    model->header.frame_id = "camera_color_optical_frame";
+    sub_cloud->header.frame_id = "camera_color_optical_frame";
+    fit_score = 1.0;
 
     printf("Initial guess\n");
-    Eigen::Matrix4f tf1 = initial_guess(model, sub_cloud);
+    Eigen::Matrix4f tf1, tf2, final_tf;
 
-    pcl::transformPointCloud(*model, *ini_guess_tf_cloud, tf1);
     printf("ICP\n");
-    Eigen::Matrix4f tf2 = point_2_point_icp(ini_guess_tf_cloud, sub_cloud, registered_cloud);
-    Eigen::Matrix4f final_tf = tf1 * tf2;
+    while(fit_score > 0.00028)
+    {
+      tf1 = initial_guess(model, sub_cloud);
+      pcl::transformPointCloud(*model, *ini_guess_tf_cloud, tf1);
+      tf2 = point_2_point_icp(ini_guess_tf_cloud, sub_cloud, registered_cloud);
+      ros::spinOnce();
+    }
+    final_tf = tf2.inverse() * tf1.inverse();
+
     cout << final_tf << endl;
 
-    tf::Transform final_tf_transform = eigen2tf_full(final_tf);
+    tf::Transform final_tf_transform = eigen2tf_full(final_tf.inverse());
 
-    res.object_pose.header.frame_id = "map";
+    res.object_pose.header.frame_id = "camera_color_optical_frame";
     res.object_pose.header.stamp = ros::Time::now();
     res.object_pose.pose = tf2Pose(final_tf_transform);
 
