@@ -274,7 +274,7 @@ private:
     Eigen::Matrix4f tf1, tf2, final_tf;
 
     printf("ICP\n");
-    while(fit_score > 0.00085)
+    while (fit_score > 0.00085)
     {
       tf1 = initial_guess(model, sub_cloud);
       pcl::transformPointCloud(*model, *ini_guess_tf_cloud, tf1);

@@ -151,6 +151,10 @@ add_executable(icp_example src/icp_example.cpp)
 add_dependencies(icp_example ${PROJECT_NAME}_gencpp)
 target_link_libraries(icp_example ${catkin_LIBRARIES})
 
+add_executable(cluster src/cluster.cpp)
+add_dependencies(cluster ${PROJECT_NAME}_gencpp)
+target_link_libraries(cluster ${catkin_LIBRARIES})
+
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
 #   src/${PROJECT_NAME}/pcl_example.cpp
