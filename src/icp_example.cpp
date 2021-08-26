@@ -58,7 +58,7 @@ private:
   geometry_msgs::Pose tf1_pose, tf2_pose;
   double fit_score;
 
-  string model_path = "/home/jacky/pcl_ws/src/pcl_icp/model/cracker_box.ply";
+  string model_path = "/home/jacky/pcl_ws/src/pcl_icp/model/blocks.pcd";
   string cloud_path = "/home/dualarm/mm-dual-arm-regrasp/catkin_ws/src/pcl_icp/model/3d_model/64k/006_mustard_bottle_google_64k/006_mustard_bottle/google_64k/nontextured.ply";
 
   tf::Transform getTransform(std::string target, std::string source, bool &result)
@@ -124,7 +124,7 @@ private:
     //////////////Step2. Downsample////////////
     pcl::VoxelGrid<pcl::PointXYZRGB> sor;
     sor.setInputCloud(cloud);
-    sor.setLeafSize(0.004f, 0.004f, 0.004f);
+    sor.setLeafSize(0.002f, 0.002f, 0.002f);
     sor.filter(*cloud);
     copyPointCloud(*cloud, *cloud);
     //printf("Downsampled point number: %d\n", cloud->points.size());
@@ -144,12 +144,12 @@ private:
 
     // build the condition
     pcl::ConditionAnd<pcl::PointXYZRGB>::Ptr range_cond(new pcl::ConditionAnd<pcl::PointXYZRGB>());
-    range_cond->addComparison(pcl::FieldComparison<pcl::PointXYZRGB>::ConstPtr(new pcl::FieldComparison<pcl::PointXYZRGB>("x", pcl::ComparisonOps::GT, -0.28)));
-    range_cond->addComparison(pcl::FieldComparison<pcl::PointXYZRGB>::ConstPtr(new pcl::FieldComparison<pcl::PointXYZRGB>("x", pcl::ComparisonOps::LT, -0.06)));
-    range_cond->addComparison(pcl::FieldComparison<pcl::PointXYZRGB>::ConstPtr(new pcl::FieldComparison<pcl::PointXYZRGB>("y", pcl::ComparisonOps::GT, -0.15)));
-    range_cond->addComparison(pcl::FieldComparison<pcl::PointXYZRGB>::ConstPtr(new pcl::FieldComparison<pcl::PointXYZRGB>("y", pcl::ComparisonOps::LT, 0.18)));
+    range_cond->addComparison(pcl::FieldComparison<pcl::PointXYZRGB>::ConstPtr(new pcl::FieldComparison<pcl::PointXYZRGB>("x", pcl::ComparisonOps::GT, 0.00)));
+    range_cond->addComparison(pcl::FieldComparison<pcl::PointXYZRGB>::ConstPtr(new pcl::FieldComparison<pcl::PointXYZRGB>("x", pcl::ComparisonOps::LT, 0.11)));
+    range_cond->addComparison(pcl::FieldComparison<pcl::PointXYZRGB>::ConstPtr(new pcl::FieldComparison<pcl::PointXYZRGB>("y", pcl::ComparisonOps::GT, -0.08)));
+    range_cond->addComparison(pcl::FieldComparison<pcl::PointXYZRGB>::ConstPtr(new pcl::FieldComparison<pcl::PointXYZRGB>("y", pcl::ComparisonOps::LT, 0.06)));
     range_cond->addComparison(pcl::FieldComparison<pcl::PointXYZRGB>::ConstPtr(new pcl::FieldComparison<pcl::PointXYZRGB>("z", pcl::ComparisonOps::GT, 0.0)));
-    range_cond->addComparison(pcl::FieldComparison<pcl::PointXYZRGB>::ConstPtr(new pcl::FieldComparison<pcl::PointXYZRGB>("z", pcl::ComparisonOps::LT, 0.76)));
+    range_cond->addComparison(pcl::FieldComparison<pcl::PointXYZRGB>::ConstPtr(new pcl::FieldComparison<pcl::PointXYZRGB>("z", pcl::ComparisonOps::LT, 0.775)));
     // build the filter
     pcl::ConditionalRemoval<pcl::PointXYZRGB> condrem;
     condrem.setCondition(range_cond);
@@ -242,6 +242,7 @@ private:
     else
       cout << "Not converged." << endl;
     Eigen::Matrix4f inverse_transformation = icp->getFinalTransformation();
+    return inverse_transformation;
   }
 
   void cloud_cb(const sensor_msgs::PointCloud2ConstPtr &input)
@@ -281,8 +282,10 @@ private:
       tf2 = point_2_point_icp(ini_guess_tf_cloud, sub_cloud, registered_cloud);
       ros::spinOnce();
     }
-    final_tf = tf2.inverse() * tf1.inverse();
+    final_tf = tf1 * tf2;
 
+    cout << tf1 << endl;
+    cout << tf2 << endl;
     cout << final_tf << endl;
 
     tf::Transform final_tf_transform = eigen2tf_full(final_tf.inverse());
@@ -303,7 +306,7 @@ private:
   {
     printf("Load model\n");
     //pcl::io::loadPCDFile<pcl::PointXYZRGB>(model_path, *model);
-    pcl::io::loadPLYFile<pcl::PointXYZRGB>(model_path, *model);
+    pcl::io::loadPCDFile<pcl::PointXYZRGB>(model_path, *model);
     printf("Finish Load pointcloud of model\n");
   }
 
