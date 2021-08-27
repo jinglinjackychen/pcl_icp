@@ -42,8 +42,9 @@ class Get_object_pose
 private:
   ros::Publisher model_publisher;
   ros::Publisher cloud_publisher;
-  ros::Publisher initial_guess_tf_publisher;
+  //ros::Publisher initial_guess_tf_publisher;
   ros::Publisher registered_cloud_publisher;
+  ros::Publisher pose_publisher;
   ros::Subscriber model_subscriber;
 
   ros::ServiceServer get_object_pose_srv;
@@ -52,18 +53,24 @@ private:
   /*Load pre-scanned Model and observed cloud*/
   PointCloudXYZRGB::Ptr model;
   //PointCloudXYZRGB::Ptr cloud;
-  PointCloudXYZRGB::Ptr ini_guess_tf_cloud;
+  //PointCloudXYZRGB::Ptr ini_guess_tf_cloud;
   PointCloudXYZRGBNormal::Ptr registered_cloud_normal;
   PointCloudXYZRGB::Ptr registered_cloud;
-  geometry_msgs::Pose tf1_pose, tf2_pose;
+  geometry_msgs::Pose final_pose;
   double fit_score;
 
   string model_path = "/home/jacky/pcl_ws/src/pcl_icp/model/blocks.pcd";
   string cloud_path = "/home/dualarm/mm-dual-arm-regrasp/catkin_ws/src/pcl_icp/model/3d_model/64k/006_mustard_bottle_google_64k/006_mustard_bottle/google_64k/nontextured.ply";
 
-  tf::Transform getTransform(std::string target, std::string source, bool &result)
+  void poseBroadcaster(std::string child_frame, tf::Transform transform)
   {
-    /*
+    static tf::TransformBroadcaster br;
+    br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "camera_color_optical_frame", child_frame));
+  }
+
+  tf::Transform getTransform(std::string target, std::string source, bool result)
+  {
+  /*
    * Get transform from target frame to source frame
    * [in] target: target frame name
    * [in] source: source frame name
@@ -144,12 +151,12 @@ private:
 
     // build the condition
     pcl::ConditionAnd<pcl::PointXYZRGB>::Ptr range_cond(new pcl::ConditionAnd<pcl::PointXYZRGB>());
-    range_cond->addComparison(pcl::FieldComparison<pcl::PointXYZRGB>::ConstPtr(new pcl::FieldComparison<pcl::PointXYZRGB>("x", pcl::ComparisonOps::GT, 0.00)));
-    range_cond->addComparison(pcl::FieldComparison<pcl::PointXYZRGB>::ConstPtr(new pcl::FieldComparison<pcl::PointXYZRGB>("x", pcl::ComparisonOps::LT, 0.11)));
-    range_cond->addComparison(pcl::FieldComparison<pcl::PointXYZRGB>::ConstPtr(new pcl::FieldComparison<pcl::PointXYZRGB>("y", pcl::ComparisonOps::GT, -0.08)));
-    range_cond->addComparison(pcl::FieldComparison<pcl::PointXYZRGB>::ConstPtr(new pcl::FieldComparison<pcl::PointXYZRGB>("y", pcl::ComparisonOps::LT, 0.06)));
+    range_cond->addComparison(pcl::FieldComparison<pcl::PointXYZRGB>::ConstPtr(new pcl::FieldComparison<pcl::PointXYZRGB>("x", pcl::ComparisonOps::GT, -0.15)));
+    range_cond->addComparison(pcl::FieldComparison<pcl::PointXYZRGB>::ConstPtr(new pcl::FieldComparison<pcl::PointXYZRGB>("x", pcl::ComparisonOps::LT, 0.26)));
+    range_cond->addComparison(pcl::FieldComparison<pcl::PointXYZRGB>::ConstPtr(new pcl::FieldComparison<pcl::PointXYZRGB>("y", pcl::ComparisonOps::GT, -0.23)));
+    range_cond->addComparison(pcl::FieldComparison<pcl::PointXYZRGB>::ConstPtr(new pcl::FieldComparison<pcl::PointXYZRGB>("y", pcl::ComparisonOps::LT, 0.21)));
     range_cond->addComparison(pcl::FieldComparison<pcl::PointXYZRGB>::ConstPtr(new pcl::FieldComparison<pcl::PointXYZRGB>("z", pcl::ComparisonOps::GT, 0.0)));
-    range_cond->addComparison(pcl::FieldComparison<pcl::PointXYZRGB>::ConstPtr(new pcl::FieldComparison<pcl::PointXYZRGB>("z", pcl::ComparisonOps::LT, 0.775)));
+    range_cond->addComparison(pcl::FieldComparison<pcl::PointXYZRGB>::ConstPtr(new pcl::FieldComparison<pcl::PointXYZRGB>("z", pcl::ComparisonOps::LT, 0.735)));
     // build the filter
     pcl::ConditionalRemoval<pcl::PointXYZRGB> condrem;
     condrem.setCondition(range_cond);
@@ -219,6 +226,7 @@ private:
     else
       cout << "Not converged." << endl;
     Eigen::Matrix4f inverse_transformation = icp->getFinalTransformation();
+    return inverse_transformation;
   }
 
   Eigen::Matrix4f point_2_point_icp(PointCloudXYZRGB::Ptr cloud_src, PointCloudXYZRGB::Ptr cloud_target, PointCloudXYZRGB::Ptr trans_cloud)
@@ -271,33 +279,45 @@ private:
     sub_cloud->header.frame_id = "camera_color_optical_frame";
     fit_score = 1.0;
 
-    printf("Initial guess\n");
+    //printf("Initial guess\n");
     Eigen::Matrix4f tf1, tf2, final_tf;
 
+    tf2(1,0) = 1;
+    tf2(0,1) = -1;
+
     printf("ICP\n");
-    while(fit_score > 0.00085)
+    while (fit_score > 0.00005 /*|| tf2(1,0) > 0 || tf2(0,1) < 0*/)
     {
-      tf1 = initial_guess(model, sub_cloud);
-      pcl::transformPointCloud(*model, *ini_guess_tf_cloud, tf1);
-      tf2 = point_2_point_icp(ini_guess_tf_cloud, sub_cloud, registered_cloud);
+      //tf1 = initial_guess(model, sub_cloud);
+      //pcl::transformPointCloud(*model, *ini_guess_tf_cloud, tf1);
+      tf2 = point_2_point_icp(model, sub_cloud, registered_cloud);
       ros::spinOnce();
     }
-    final_tf = tf1 * tf2;
 
-    cout << tf1 << endl;
-    cout << tf2 << endl;
+    final_tf = tf2;
+
+    //cout << tf1 << endl;
+    //cout << tf2 << endl;
     cout << final_tf << endl;
 
-    tf::Transform final_tf_transform = eigen2tf_full(final_tf.inverse());
+    tf::Transform right_arm_pose, right_arm_camera_pose, final_tf_transform = eigen2tf_full(final_tf);
 
-    res.object_pose.header.frame_id = "camera_color_optical_frame";
+    right_arm_camera_pose = getTransform("right_arm/base_link", "camera_color_optical_frame", true);
+    right_arm_pose = right_arm_camera_pose * final_tf_transform;
+
+    res.object_pose.header.frame_id = "right_arm/base_link";
     res.object_pose.header.stamp = ros::Time::now();
-    res.object_pose.pose = tf2Pose(final_tf_transform);
+
+    res.object_pose.pose = tf2Pose(right_arm_pose);
+    final_pose = res.object_pose.pose;
 
     model_publisher.publish(model);
     cloud_publisher.publish(sub_cloud);
-    initial_guess_tf_publisher.publish(ini_guess_tf_cloud);
+    //initial_guess_tf_publisher.publish(ini_guess_tf_cloud);
     registered_cloud_publisher.publish(registered_cloud);
+    pose_publisher.publish(final_pose);
+
+    poseBroadcaster("obj_pose", final_tf_transform);
 
     return true;
   }
@@ -316,14 +336,15 @@ public:
     sub_cloud.reset(new PointCloudXYZRGB);
     model.reset(new PointCloudXYZRGB);
     //cloud.reset(new PointCloudXYZRGB);
-    ini_guess_tf_cloud.reset(new PointCloudXYZRGB);
+    //ini_guess_tf_cloud.reset(new PointCloudXYZRGB);
     registered_cloud_normal.reset(new PointCloudXYZRGBNormal);
     registered_cloud.reset(new PointCloudXYZRGB);
 
     model_publisher = nh.advertise<sensor_msgs::PointCloud2>("/camera/model", 1);
     cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("/camera/cloud", 1);
-    initial_guess_tf_publisher = nh.advertise<sensor_msgs::PointCloud2>("/camera/ini_guess", 1);
+    //initial_guess_tf_publisher = nh.advertise<sensor_msgs::PointCloud2>("/camera/ini_guess", 1);
     registered_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("/camera/registered_cloud", 1);
+    pose_publisher = nh.advertise<geometry_msgs::Pose>("/object_pose", 1);
     model_subscriber = nh.subscribe<sensor_msgs::PointCloud2>("/camera/depth_registered/points", 1, &Get_object_pose::cloud_cb, this);
 
     get_object_pose_srv = nh.advertiseService("get_object_pose", &Get_object_pose::srv_cb, this);
