@@ -59,7 +59,7 @@ private:
   geometry_msgs::Pose final_pose;
   double fit_score;
 
-  string model_path = "/home/jacky/pcl_ws/src/pcl_icp/model/blocks.pcd";
+  string model_path = "/home/dualarm/mm-dual-arm-regrasp/catkin_ws/src/pcl_icp/model/blocks.pcd";
   string cloud_path = "/home/dualarm/mm-dual-arm-regrasp/catkin_ws/src/pcl_icp/model/3d_model/64k/006_mustard_bottle_google_64k/006_mustard_bottle/google_64k/nontextured.ply";
 
   void poseBroadcaster(std::string child_frame, tf::Transform transform)
