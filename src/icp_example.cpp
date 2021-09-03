@@ -59,8 +59,8 @@ private:
   geometry_msgs::Pose final_pose;
   double fit_score;
 
-  string model_path = "/home/dualarm/mm-dual-arm-regrasp/catkin_ws/src/pcl_icp/model/blocks.pcd";
-  string cloud_path = "/home/dualarm/mm-dual-arm-regrasp/catkin_ws/src/pcl_icp/model/3d_model/64k/006_mustard_bottle_google_64k/006_mustard_bottle/google_64k/nontextured.ply";
+  string model_path = "/home/dualarm/mm-dual-arm-regrasp/catkin_ws/src/pcl_icp/model/pitcher.pcd";
+  //string cloud_path = "/home/dualarm/mm-dual-arm-regrasp/catkin_ws/src/pcl_icp/model/3d_model/64k/006_mustard_bottle_google_64k/006_mustard_bottle/google_64k/nontextured.ply";
 
   void poseBroadcaster(std::string child_frame, tf::Transform transform)
   {
@@ -70,7 +70,7 @@ private:
 
   tf::Transform getTransform(std::string target, std::string source, bool result)
   {
-  /*
+    /*
    * Get transform from target frame to source frame
    * [in] target: target frame name
    * [in] source: source frame name
@@ -232,8 +232,8 @@ private:
   Eigen::Matrix4f point_2_point_icp(PointCloudXYZRGB::Ptr cloud_src, PointCloudXYZRGB::Ptr cloud_target, PointCloudXYZRGB::Ptr trans_cloud)
   {
     pcl::IterativeClosestPoint<pcl::PointXYZRGB, pcl::PointXYZRGB>::Ptr icp(new pcl::IterativeClosestPoint<pcl::PointXYZRGB, pcl::PointXYZRGB>());
-    icp->setMaximumIterations(100);
-    //icp->setMaxCorrespondenceDistance(0.7);
+    icp->setMaximumIterations(100); // ex: 100
+    icp->setMaxCorrespondenceDistance(0.5);
     icp->setTransformationEpsilon(1e-6);
     icp->setEuclideanFitnessEpsilon(1e-7);
     icp->setInputSource(cloud_src); // not cloud_source, but cloud_source_trans!
@@ -268,6 +268,32 @@ private:
 
     point_preprocess(cloud);
     *sub_cloud = *cloud;
+/*
+    // get width and height of 2D point cloud data
+    int width = 640;
+    int height = 480;
+
+    // Convert from u (column / width), v (row/height) to position in array
+    // where X,Y,Z data starts
+    int arrayPosition = 0 * 20480 + 185 * 32; // v*Cloud.row_step + u*Cloud.point_step;
+
+    // compute position in array where x,y,z data start
+    int arrayPosX = arrayPosition + 0; // X has an offset of 0
+    int arrayPosY = arrayPosition + 4; // Y has an offset of 4
+    int arrayPosZ = arrayPosition + 8; // Z has an offset of 8
+
+    float X = 0.0;
+    float Y = 0.0;
+    float Z = 0.0;
+
+    memcpy(&X, &input->data[arrayPosX], sizeof(float));
+    memcpy(&Y, &input->data[arrayPosY], sizeof(float));
+    memcpy(&Z, &input->data[arrayPosZ], sizeof(float));
+
+    cout << "X:" << X << endl;
+    cout << "Y:" << Y << endl;
+    cout << "Z:" << Z << endl;
+*/
   }
 
   /*
@@ -281,12 +307,17 @@ private:
 
     //printf("Initial guess\n");
     Eigen::Matrix4f tf1, tf2, final_tf;
+    //tf::Transform TM;
 
-    tf2(1,0) = 1;
-    tf2(0,1) = -1;
+    //TM.setOrigin(tf::Vector3(0.03, -0.02, 0.0)); // fX, fY, fZ
+    //TM.setRotation(tf::Quaternion(0.0, 0.0, 0.785)); // fPitch, fRoll, fYaw
+    //tf1 = tf2eigen(TM);
+
+    tf2(1, 0) = 1;
+    tf2(0, 1) = -1;
 
     printf("ICP\n");
-    while (fit_score > 0.00005 /*|| tf2(1,0) > 0 || tf2(0,1) < 0*/)
+    while (fit_score > 0.00049) //block 0.00005
     {
       //tf1 = initial_guess(model, sub_cloud);
       //pcl::transformPointCloud(*model, *ini_guess_tf_cloud, tf1);
