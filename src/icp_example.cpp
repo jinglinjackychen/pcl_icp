@@ -257,6 +257,7 @@ private:
   {
     PointCloudXYZRGB::Ptr cloud(new PointCloudXYZRGB);
     pcl::fromROSMsg(*input, *cloud); //convert from PointCloud2 to pcl point type
+    
     //Exmaple : pcl PointCloudXYZRGB information
     //printf("-------------------------Cloud information-----------------------------\n");
     //printf("Original Cloud size: %d\n", cloud->points.size());
@@ -269,26 +270,35 @@ private:
     point_preprocess(cloud);
     *sub_cloud = *cloud;
 /*
+    sensor_msgs::PointCloud2Ptr tmp;
+    memcpy(&tmp, &input, sizeof(input));
+
     // get width and height of 2D point cloud data
     int width = 640;
     int height = 480;
 
     // Convert from u (column / width), v (row/height) to position in array
     // where X,Y,Z data starts
-    int arrayPosition = 0 * 20480 + 185 * 32; // v*Cloud.row_step + u*Cloud.point_step;
+    int arrayPosition = 240 * 20480 + 320 * 32; // v*Cloud.row_step + u*Cloud.point_step;
 
     // compute position in array where x,y,z data start
     int arrayPosX = arrayPosition + 0; // X has an offset of 0
     int arrayPosY = arrayPosition + 4; // Y has an offset of 4
     int arrayPosZ = arrayPosition + 8; // Z has an offset of 8
 
+    const float Nan_value = 0.0/0.0;
+
     float X = 0.0;
     float Y = 0.0;
     float Z = 0.0;
 
-    memcpy(&X, &input->data[arrayPosX], sizeof(float));
-    memcpy(&Y, &input->data[arrayPosY], sizeof(float));
-    memcpy(&Z, &input->data[arrayPosZ], sizeof(float));
+    memcpy(&tmp->data[arrayPosX], &Nan_value, sizeof(float));
+    memcpy(&tmp->data[arrayPosY], &Nan_value, sizeof(float));
+    memcpy(&tmp->data[arrayPosZ], &Nan_value, sizeof(float));
+
+    memcpy(&X, &tmp->data[arrayPosX], sizeof(float));
+    memcpy(&Y, &tmp->data[arrayPosY], sizeof(float));
+    memcpy(&Z, &tmp->data[arrayPosZ], sizeof(float));
 
     cout << "X:" << X << endl;
     cout << "Y:" << Y << endl;
